@@ -14,11 +14,6 @@
 
 using namespace std;
 
-void gen_rand_loc(int width, int height, int &r, int &c) {
-	r = rand() % height;
-	c = rand() % width;
-}
-
 // 
 // Image structure
 //
@@ -27,7 +22,7 @@ struct MyImg {
 	int width;
 	int channels;
 	int height;
-	std::string filename;
+	char* filename;
 };
 
 void prn_img(MyImg* img) {
@@ -68,9 +63,9 @@ MyImg* load_img(char* filename) {
 
 }
 
-void save_img(const string& filename, MyImg* img) {
+void save_img(MyImg* img) {
 	// Saves to a jpg file
-	stbi_write_jpg("manipulated.jpg", img->width, img->height, img->channels, img->data, 100);
+	stbi_write_jpg("sub.jpg", img->width, img->height, img->channels, img->data, 100);
 	cout << "Image successfully saved." << endl;
 }
 
@@ -130,40 +125,6 @@ uint8_t get_pixel_blue(MyImg* img, int r, int c) {
 	return *p;
 }
 
-// 
-// Flip code
-//
-
-void flip(MyImg* img, int dir) {
-	if(dir == 0) { // Flip image vertically
-		MyImg* temp = load_img(img->filename);
-		
-		for(int i = 0; i <= img->height; i++) {
-			for(int j = 0; j <= img->width; j++) {
-				set_pixel_red(img, i, j, get_pixel_red(temp, img->height - i, j));
-				set_pixel_green(img, i, j, get_pixel_green(temp, img->height - i, j));
-				set_pixel_blue(img, i, j, get_pixel_blue(temp, img->height - i, j));
-			}
-		}
-		rm_img(&temp);
-		cout << "Image successfully flipped vertically." << endl;
-	} else if(dir == 1) { // Flip image horizontally
-		MyImg* temp = load_img(img->filename);
-		
-		for(int i = 0; i < img->height; i++) {
-			for(int j = 0; j < img->width; j++) {
-				set_pixel_red(img, i, j, get_pixel_red(temp, i, img->width - j));
-				set_pixel_green(img, i, j, get_pixel_green(temp, i, img->width - j));
-				set_pixel_blue(img, i, j, get_pixel_blue(temp, i, img->width - j));
-			}
-		}
-		rm_img(&temp);
-		cout << "Image successfully flipped horizontally." << endl;
-	} else {
-		cerr << "Invalid input for dir. Must be either 0 or 1," << endl;
-	}
-}
-
 //
 // Subregion generator
 // 
@@ -189,36 +150,38 @@ MyImg* get_sub(MyImg* src, int top, int left, int bottom, int right) {
 }
 
 // 
-// Code to set rows to black
-//
-
-void set_rows_black(MyImg* img, int n_rows) {
-	for (unsigned char* p = img; p != img + n_rows * width * channels; p += channels) {
-		*p = (uint8_t) 0;
-		*(p+1) = (uint8_t) 0;
-		*(p+2) = (uint8_t) 0;
-	}
-	cout << n_rows << " rows set to black" << endl;
-}
-
-// 
 // The main function
 //
 
 int main(int argc, char** argv) {
 
-	if(argc != 2) {
-		cerr << "Usage: " << argv[0] << " [JPEG filename]" << endl;
+	if(argc != 6) {
+		cerr << "Usage: " << argv[0] << "[JPEG filename] [y-start] [x-start] [y-end] [x-end]" << endl;
 		return -1;
 	}
 
-	MyImg* img = load_img(argv[1]);
-	
-	// Image manipulation code goes here.
+	if(atoi(argv[3]) > atoi(argv[5]) || atoi(argv[2]) > atoi(argv[4])) {
+		cerr << "Improper bounds. First two must be less than latter two." << endl;
+		return -2;
+	}
 
-	save_img("manipulated.jpg", img);
+	MyImg* img = load_img(argv[1]);
+
+	if(img->width < atoi(argv[5]) || img->height < atoi(argv[4]) || atoi(argv[3]) < 0 || atoi(argv[2]) < 0) {
+		cerr << "Dimensions out of bounds of input JPEG file." << endl;
+		cerr << "X must not exceed " << img->width << endl;
+		cerr << "Y must not exceed " << img->height << endl;
+		return -3;
+	}
+
+	// Generate the subregion
+	
+	MyImg* img2 = get_sub(img, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+
+	save_img(img2);
 
 	rm_img(&img);
+	rm_img(&img2);
 	
 	return 0;
 }
